@@ -1,3 +1,4 @@
-Document Q&A system built with FastAPI and Python, enabling users to upload PDFs or text files, automatically extract and chunk content, and query it using embeddings. Features safe ingestion with file size limits, chunk size control, and batch processing to prevent memory overload. Fully containerized with Docker for isolated, reproducible deployment.
+# AirDocx - Document Q&A System
 
-
+FastAPI app to upload PDFs/text, extract and chunk content, and query using embeddings. 
+Safe ingestion with file size and chunk limits, batch processing, and Docker containerization for safe deployment.
