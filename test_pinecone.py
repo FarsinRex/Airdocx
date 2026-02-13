@@ -1,11 +1,11 @@
+#using pinecone 3.2.2
 import os
 from dotenv import load_dotenv
-import pinecone 
-
+from pinecone import Pinecone
 load_dotenv()
-pinecone.init(api_key = os.getenv("PINECONE_API_KEY"), environment="us-east-1")
+pc = Pinecone(api_key=os.getenv('PINECONE_API_KEY'))
 
-index_name = os.getenv("PINECONE_INDEX_NAME")
-available_indexes = pinecone.Index(index_name)
-stats = available_indexes.describe_index_stats()
+index = pc.Index(os.getenv('PINECONE_INDEX_NAME'))
+
+stats = index.describe_index_stats()
 print(stats)

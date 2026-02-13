@@ -30,12 +30,10 @@ def test_pipeline(pdf_path: str):
     
     # Stats
     stats = vs.get_stats()
-    print("\n" + "="*60)
     print(" PIPELINE TEST COMPLETE")
     print("="*60)
     print(f"Total vectors in index: {stats['total_vector_count']}")
-    print(f"Chunks processed: {len(chunks)}")
-    print("="*60)
+    print(f"Chunks processed: {len(chunks)}"+"\n")
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:

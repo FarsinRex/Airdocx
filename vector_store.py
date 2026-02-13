@@ -1,7 +1,7 @@
 import os
 from typing import List, Dict
 from dotenv import load_dotenv
-import pinecone
+from pinecone import Pinecone
 
 from sentence_transformers import SentenceTransformer
 load_dotenv()
@@ -18,21 +18,19 @@ class VectorStore:
         
         
         #initiaze pinecone connection
-        pinecone.init(
-            api_key=os.getenv('PINECONE_API_KEY'),
-            environment='us-east-1-aws'
-        )
-        self.index_name = os.getenv('PINECONE_INDEX_NAME')
-        self.index_host = os.getenv('PINECONE_HOST')
-        self.index = pinecone.Index(index_name=self.index_name, host=sectvilf.index_host)
+        api_key = os.getenv('PINECONE_API_KEY')
+        index_name = os.getenv('PINECONE_INDEX_NAME')
+        pc = Pinecone(api_key=api_key)
+        self.index = pc.Index(index_name)
+        stats = self.index.describe_index_stats()
+        print(f"connected to index:{index_name} with dimension: {stats['dimension']} ")
         
-        print(f"    Connected to index: {self.index_name}")
         
     def embed_text(self, text:str) -> List[float]:
         """Generate embedding for a given text
         """
-        embedding = self.embedder.encode(text)
-        return embedding.tolist()
+        embedding = self.embedder.encode(text).tolist()
+        return embedding
     
     def embed_chunks(self, chunks: List[Dict]) -> List[Dict]:
         """Generate embeddings for a list of text chunks
@@ -53,7 +51,7 @@ class VectorStore:
         for chunk in chunks:
             vectors.append(
                 {
-                    "id": chunk['id'],
+                    "id": chunk['chunk_id'],
                     "values": chunk['embedding'],
                     "metadata": {
                         "text": chunk['text'],
@@ -114,14 +112,17 @@ if __name__ == "__main__":
     
     test_text = "this is a test chunk of text to be embedded and stored in pinecone"
     embedding = vs.embed_text(test_text)
-    print(f"test embedding: {len(embedding)} dimensions")
-    print(f" first 5 values: {embedding[:5]}")
-    
-    results = vs.search("test_chunk")
-    
-    
+   
+   
+    dimensions_script = {len(embedding)}
+    first_5_values = embedding[:5]
     results = vs.search("test_chunk", top_k=3)
-    print(f"Search results: {len(results)} results")
-    
     stats = vs.get_stats()
-    print(f"Index stats: {stats}")
+    
+    with open("results.md","a") as f:
+        f.write(f"\n ##new results \n")
+        f.write(f"Dimesnions: {dimensions_script}")
+        f.write(f"results= {results}")
+        f.write(f"stats: {stats}")
+        
+        

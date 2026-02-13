@@ -33,40 +33,21 @@ class PDFProcessor:
     def chunk_text(self, text:str) -> List[Dict]:
         """Split text into overlapping chunks
         """
-        #positive lookbehind to split on sentence boundaries while keeping punctuation
-        sentences = re.split(r'(?<=[.!?]) +', text)
+        print(f" chunking into {self.chunk_size}-word pieces")
         
+        words = text.split()
         chunks = []
-        current_chunk = []
-        current_words = 0
-        
-        for sentence in sentences:
-            words = len(sentence.split())
+        start = 0
+        while start<len(words):
+            end = start + self.chunk_size
+            chunk_words = words[start:end]
+            chunk_text = ' '.join(chunk_words)
             
-            if current_words + words > self.chunk_size and current_chunk:
-                 
-                 chunk_text = ''.join(current_chunk)
-                 chunks.append(
-                     {
-                         'chunk_id': f"chunk_{len(chunks)}",
-                         'text': chunk_text,
-                         'word_count': current_words
-                     }
-                 )
-            else:
-                current_chunk.append(sentence)
-                current_words += words
-        #final_chunk
-        if current_chunk:
             chunks.append({
-                'chunk_id': f"chunk_{len(chunks)}",
-                'text': ''.join(current_chunk),
-                'word_count': current_words
-            })
-            
-        print(f"created {len(chunks)} chunks")
-        return chunks
-    
+                    'chunk_id': f"chunk_{len(chunks)}",
+                    'text':chunk_text,
+                    'word_count':len(chunk_words)
+                })    
     def process_pdf(self,pdf_path: str) -> List[Dict]:
         """
         complete pipeline: extract+chunk
