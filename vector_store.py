@@ -2,15 +2,24 @@ import os
 from typing import List, Dict
 from dotenv import load_dotenv
 from pinecone import Pinecone
-
 from sentence_transformers import SentenceTransformer
+
 load_dotenv()
+SCORE_THRESHOLD = 0.72
 
 class VectorStore:
     """Manages embeddings and pinecone storage
     """
     def __init__(self):
         #initliaze embedding model 
+        api_key = os.getenv('PINECONE_API_KEY')
+        index_name = os.getenv('PINECONE_INDEX_NAME')
+        
+        if not api_key:
+            raise ValueError("PINECONE_API_KEY not found, check your env file")
+        if not index_name:
+            raise ValueError("PINECONE_INDEX_NAME not found, check your env file")
+        
         print("Loading embedding model")
         self.embedder = SentenceTransformer('all-MiniLM-L6-v2')
         print("Embedding model loaded")
@@ -18,8 +27,7 @@ class VectorStore:
         
         
         #initiaze pinecone connection
-        api_key = os.getenv('PINECONE_API_KEY')
-        index_name = os.getenv('PINECONE_INDEX_NAME')
+        
         pc = Pinecone(api_key=api_key)
         self.index = pc.Index(index_name)
         stats = self.index.describe_index_stats()
@@ -33,16 +41,20 @@ class VectorStore:
         return embedding
     
     def embed_chunks(self, chunks: List[Dict]) -> List[Dict]:
-        """Generate embeddings for a list of text chunks
         """
-        print(f"Embedding {len(chunks)} chunks")
-        for chunk in chunks:
-            chunk['embedding'] = self.embed_text(chunk['text'])
-        print("All chunks embedded")
-        return chunks
+        Batch embed all chunks in a single encode call
+        Significantly faster than per-chunk encoding
+        """
+        texts = [chunk['text'] for chunk in chunks]
+        embeddings = self.embedder.encode(texts, show_progress_bar = True)
+        
+        for chunk, embedding in zip(chunks, embeddings):
+            chunk['embedding'] = embedding.tolist()
     
-    def upsert_chunks(self, chunks: List[Dict], source: str = "unknown.pdf"):
-        """store chunks in pinecone
+    def upsert_chunks(self, chunks: List[Dict], namespace: str = 'default'):
+        """
+        Upset vectors into pinecone under a namespace
+        Namespace isolates documents within the same index
         """
         # Implementation would depend on pinecone setup and chunk structure
         print("uploading to pinecone")
@@ -52,56 +64,71 @@ class VectorStore:
             vectors.append(
                 {
                     "id": chunk['chunk_id'],
-                    "values": chunk['embedding'],
-                    "metadata": {
-                        "text": chunk['text'],
-                        'source': source,
-                        'word_count': chunk['word_count']
+                "values": chunk['embedding'],
+                "metadata": {
+                    "text": chunk['text'],
+                    "source": chunk['source'],
+                    "pages": chunk['pages'],
+                    "word_count": chunk['word_count'],
+                    "chunk_index": chunk['chunk_index']
                         
                     }
                 }
             )
         #upsert to pinecone - in batches of 100
         batch_size = 100
+        total = len(vectors)
         
-        for i in range(0, len(vectors),batch_size):
+        for i in range(0, total, batch_size):
             batch = vectors[i:i+batch_size]
             #pinecone upsert code here
             print(f"Upserting batch {i//batch_size + 1} with {len(batch)} vectors")
-            self.index.upsert(vectors=batch)
-            print(f" uploade {min(i+batch_size, len(vectors))/len(vectors)}")
-        print(f"stored: {len(vectors)} chunks in pinecone")
+            self.index.upsert(vectors=batch, namespace=namespace)
+            uploaded = min(i+batch_size, total)
+            print(f"Upserted: {uploaded}/{total} chunks in pinecone")
     
-    def search(self, query:str, top_k: int=3) -> List[Dict]:
+    def search(
+        self, 
+        query:str, 
+        top_k: int=3,
+        namespace:str = "default",
+        score_threshold: float = SCORE_THRESHOLD
+        ) -> List[Dict]:
         """
-        Search for similar chunks in pinecone based on a query
+        Retrieve top-K chunks above score threshold
+        Return empty list if no matches meet the threshold
         """
         query_embedding = self.embed_text(query)
+        
         results = self.index.query(
             vector=query_embedding,
             top_k=top_k,
-            include_metadata=True
+            include_metadata=True,
+            namespace=namespace
         )
         
         matches = []
         for match in results['matches']:
+            if match['score'] < score_threshold:
+                continue
             matches.append({
                 "chunk_id": match['id'],
                 "score": match['score'],
                 "text": match['metadata']['text'],
-                "source": match['metadata']['source']
+                "source": match['metadata']['source'],
+                "pages": match['metadata'].get('pages', [])
             })
         print(f" found {len(matches)} matches")
         return matches
     
-    def delete_all(self):
+    def delete_namespace(self, namespace: str):
         """Delete all vectors in the index - use with caution
         """
         print("Deleting all vectors in the index")
-        self.index.delete(delete_all=True)
+        self.index.delete(delete_all=True, namespace=namespace)
         print("All vectors deleted")
         
-    def get_stats(self):
+    def get_stats(self) -> Dict:
         """Get index statistics
         """
         stats = self.index.describe_index_stats()

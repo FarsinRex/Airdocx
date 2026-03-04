@@ -1,4 +1,5 @@
-import PyPDF2
+import hashlib
+import pdfplumber
 from typing import List, Dict
 import re
 
@@ -6,54 +7,85 @@ class PDFProcessor:
     """
     Extracts text from PDFs and chunks into digestible pieces
     """
-    def __init__(self, chunk_size: int = 100, chunk_overlap: int = 50):
+    def __init__(self, chunk_size: int = 512, chunk_overlap: int = 64):
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
         print(f"PDF processor initialized with chunk size: {self.chunk_size}, overlap: {self.chunk_overlap}")
     
-    def extract_text(self, pdf_path:str) -> str:
+    def extract_text(self, pdf_path:str) -> List[Dict]:
         """
-        Extract all the text from a PDF file
+        Extract text per page, preserving the page number for citation tracking
+        Returns list of {page_num} dicts
         """
+        pages = []
         print(f"extracting from path: {pdf_path}")
         
-        text = ""
-        with open(pdf_path, 'rb') as file:
-            reader = PyPDF2.PdfReader(file)
-            num_pages = len(reader.pages)
-            
-            print(f"  pages: {num_pages}")
-            for page in reader.pages:
-                #calling extract_text from PyPDF2 on each page and concatenating results
-                text+= page.extract_text() + "\n"
-        #removing extra whitespace and newlines
-        text = re.sub(r'\s+', ' ', text).strip()
-        print(f"  extracted {len(text)} characters")
-        return text
-    def chunk_text(self, text:str) -> List[Dict]:
-        """Split text into overlapping chunks
+        with pdfplumber.open(pdf_path) as pdf:
+            for i, page in enumerate(pdf.pages):
+                text = page.extract_text()
+                
+                if text:
+                    #normalize whitespace within page but preserve page boundary
+                    text = re.sub(r'[ \t]+', ' ', text).strip()
+                    pages.append({
+                        'page_num': i+1,
+                        'text': text
+                    })
+        return pages
+    
+    
+    def chunk_text(self, pages: List[Dict], source: str) -> List[Dict]:
         """
-        print(f" chunking into {self.chunk_size}-word pieces")
-        
-        words = text.split()
+        chunk word-by-word with overlap. Tracks page number and source.
+        chunk_id is deterministic: hash of (source+chunk_index).
+        """
         chunks = []
+        #flatten all words  but trakc which page each word came from
+        word_page_map = []
+        for page in pages:
+            words = page['text'].split()
+            for word in words:
+                word_page_map.append([word, page['page_num']])
+        
         start = 0
-        while start<len(words):
-            end = start + self.chunk_size
-            chunk_words = words[start:end]
+        chunk_index = 0
+    
+        while start < len(word_page_map):
+            end = min(start+ self.chunk_size, len(word_page_map))
+            slice_ = word_page_map[start:end]
+            
+            chunk_words = [w for w, _ in slice_]
+            chunk_pages = list(set(p for _, p in slice_))
+            
             chunk_text = ' '.join(chunk_words)
             
+            #deterministic ID:  prevents collision across documents
+            raw_id = f"{source}_{chunk_index}"
+            chunk_id = hashlib.md5(raw_id.encode()).hexdigest()
+        
             chunks.append({
-                    'chunk_id': f"chunk_{len(chunks)}",
-                    'text':chunk_text,
-                    'word_count':len(chunk_words)
-                })    
+                'chunk_id': chunk_id,
+                'text': chunk_text,
+                'word_count': len(chunk_words),
+                'source': source,
+                'pages': sorted(chunk_pages),
+                'chunk_index': chunk_index
+            })
+            
+            chunk_index += 1
+            
+            start += self.chunk_size - self.chunk_overlap
+        return chunks        
+
+            
+            
+      
     def process_pdf(self,pdf_path: str) -> List[Dict]:
         """
         complete pipeline: extract+chunk
         """
         text = self.extract_text(pdf_path)
-        chunks = self.chunk_text(text)
+        chunks = self.chunk_text(pages, source=pdf_path)
         return chunks
 
 if __name__ == "__main__":
