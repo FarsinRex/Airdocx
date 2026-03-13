@@ -40,7 +40,7 @@ class PDFProcessor:
         chunk_id is deterministic: hash of (source+chunk_index).
         """
         chunks = []
-        #flatten all words  but trakc which page each word came from
+        #flatten all words  but track which page each word came from
         word_page_map = []
         for page in pages:
             words = page['text'].split()
@@ -57,7 +57,7 @@ class PDFProcessor:
             chunk_words = [w for w, _ in slice_]
             chunk_pages = list(set(p for _, p in slice_))
             
-            chunk_text = ' '.join(chunk_words)
+            chunk_text_str = ' '.join(chunk_words)
             
             #deterministic ID:  prevents collision across documents
             raw_id = f"{source}_{chunk_index}"
@@ -65,7 +65,7 @@ class PDFProcessor:
         
             chunks.append({
                 'chunk_id': chunk_id,
-                'text': chunk_text,
+                'text': chunk_text_str,
                 'word_count': len(chunk_words),
                 'source': source,
                 'pages': sorted(chunk_pages),
@@ -84,7 +84,7 @@ class PDFProcessor:
         """
         complete pipeline: extract+chunk
         """
-        text = self.extract_text(pdf_path)
+        pages = self.extract_text(pdf_path)
         chunks = self.chunk_text(pages, source=pdf_path)
         return chunks
 

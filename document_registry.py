@@ -5,13 +5,17 @@ from datetime import datetime
 from models import DocumentRecord
 
 REGISTRY_PATH = "document_registry.json"
+REGISTRY_PATH = os.path.join(os.path.dirname(__file__), "document_registry.json")
 
 
 def _load() -> Dict:
     if not os.path.exists(REGISTRY_PATH):
         return {"documents": {}}
     with open(REGISTRY_PATH, "r") as f:
-        return json.load(f)
+        content = f.read().strip()
+        if not content:
+            return {"documents":{}}
+        return json.loads(content)
 
 
 def _save(data: Dict):

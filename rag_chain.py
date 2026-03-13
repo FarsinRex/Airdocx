@@ -8,13 +8,14 @@ load_dotenv()
 
 class RAGChain:
     def __init__(self, 
+                 vector_store: VectorStore,
                  namespace: str = "default",
                  top_k: int =5,
                  score_threshold: float = 0.72
     ):
         
         
-        self.vector_store = VectorStore()
+        self.vector_store = vector_store
         self.client = Groq(api_key=os.getenv('GROQ_API_KEY'))
         self.model = 'llama-3.3-70b-versatile'
         self.top_k = top_k
@@ -25,7 +26,7 @@ class RAGChain:
         return self.vector_store.search(
             query,
             top_k=self.top_k,
-            namespace=self.namespace
+            namespace=self.namespace,
             score_threshold= self.score_threshold
         )
 

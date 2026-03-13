@@ -1,14 +1,14 @@
 from fastapi import APIRouter, HTTPException
 from models import QueryRequest, QueryResponse, ContextChunk
 from rag_chain import RAGChain
+from fastapi import Request
 from document_registry import document_exists
 
 router = APIRouter()
 
 
 @router.post("/ask", response_model=QueryResponse)
-async def ask(request: QueryRequest):
-
+async def ask(request: Request, body: QueryRequest):
     if not document_exists(request.document_id):
         raise HTTPException(
             status_code=404,
@@ -16,9 +16,10 @@ async def ask(request: QueryRequest):
         )
 
     rag = RAGChain(
-        namespace=request.document_id,
-        top_k=request.top_k,
-        score_threshold=request.score_threshold
+        vector_store = request.app.state.vector_store,
+        namespace=body.document_id,
+        top_k=body.top_k,
+        score_threshold=body.score_threshold
     )
 
     result = rag.answer(request.question)

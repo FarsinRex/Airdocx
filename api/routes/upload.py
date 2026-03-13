@@ -3,22 +3,21 @@ import os
 import shutil
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from datetime import datetime
-
+from fastapi import Request
 from pdf_processor import PDFProcessor
 from vector_store import VectorStore
 from document_registry import register_document, get_document
 from models import UploadResponse
 
 router = APIRouter()
-
-UPLOAD_DIR = "uploaded_pdfs"
+UPLOAD_DIR = os.environ.get("UPLOAD_DIR","/uploads")
 MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024  # 20MB hard limit
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
 @router.post("/upload", response_model=UploadResponse)
-async def upload_pdf(file: UploadFile = File(...)):
-
+async def upload_pdf(request: Request, file: UploadFile = File(...)):
+    vs = request.app.state.vector_store
     # validate file type
     if not file.filename.endswith(".pdf"):
         raise HTTPException(
