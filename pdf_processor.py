@@ -7,10 +7,15 @@ class PDFProcessor:
     """
     Extracts text from PDFs and chunks into digestible pieces
     """
-    def __init__(self, chunk_size: int = 512, chunk_overlap: int = 64):
+    def __init__(self, chunk_size: int = 120, chunk_overlap: int = 20):
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
         print(f"PDF processor initialized with chunk size: {self.chunk_size}, overlap: {self.chunk_overlap}")
+    
+    def _clean_text(self, text: str) -> str:
+        text = re.sub(r'-\s*\n\s*', '', text)
+        text = re.sub(r'[ \t]+', ' ', text)
+        return text.strip()
     
     def extract_text(self, pdf_path:str) -> List[Dict]:
         """
@@ -24,9 +29,11 @@ class PDFProcessor:
             for i, page in enumerate(pdf.pages):
                 text = page.extract_text()
                 
+                if text is None:
+                    continue
+                text = self._clean_text(text)
                 if text:
                     #normalize whitespace within page but preserve page boundary
-                    text = re.sub(r'[ \t]+', ' ', text).strip()
                     pages.append({
                         'page_num': i+1,
                         'text': text
@@ -80,12 +87,12 @@ class PDFProcessor:
             
             
       
-    def process_pdf(self,pdf_path: str) -> List[Dict]:
+    def process_pdf(self,pdf_path: str, source: str = None) -> List[Dict]:
         """
         complete pipeline: extract+chunk
         """
         pages = self.extract_text(pdf_path)
-        chunks = self.chunk_text(pages, source=pdf_path)
+        chunks = self.chunk_text(pages, source=source or pdf_path)
         return chunks
 
 if __name__ == "__main__":

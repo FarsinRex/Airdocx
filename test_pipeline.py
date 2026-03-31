@@ -3,8 +3,8 @@ from pdf_processor import PDFProcessor
 from vector_store import VectorStore
 from rag_chain import RAGChain
 
-CHUNK_SIZE = 512
-CHUNK_OVERLAP = 64
+CHUNK_SIZE = 64
+CHUNK_OVERLAP = 10 
 TEST_NAMESPACE = "test"
 
 def test_pipeline(pdf_path: str):

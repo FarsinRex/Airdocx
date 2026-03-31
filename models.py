@@ -20,7 +20,7 @@ class QueryRequest(BaseModel):
     question: str = Field(..., min_length=3, max_length=1000)
     document_id: str = Field(..., description="ID returned from /upload")
     top_k: Optional[int] = Field(default=5, ge=1, le=10)
-    score_threshold: Optional[float] = Field(default=0.72, ge=0.0, le=1.0)
+    score_threshold: Optional[float] = Field(default=0.30, ge=0.0, le=1.0)
 
 
 class ContextChunk(BaseModel):

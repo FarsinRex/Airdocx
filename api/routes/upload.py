@@ -53,8 +53,8 @@ async def upload_pdf(request: Request, file: UploadFile = File(...)):
 
     try:
         # process PDF
-        processor = PDFProcessor(chunk_size=512, chunk_overlap=64)
-        chunks = processor.process_pdf(temp_path)
+        processor = PDFProcessor(chunk_size=120, chunk_overlap=20)
+        chunks = processor.process_pdf(temp_path, source = file.filename)
 
         if not chunks:
             raise HTTPException(

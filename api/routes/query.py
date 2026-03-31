@@ -9,20 +9,20 @@ router = APIRouter()
 
 @router.post("/ask", response_model=QueryResponse)
 async def ask(request: Request, body: QueryRequest):
-    if not document_exists(request.document_id):
+    if not document_exists(body.document_id):
         raise HTTPException(
             status_code=404,
-            detail=f"No document found with id '{request.document_id}'. Upload it first."
+            detail=f"No document found with id '{body.document_id}'. Upload it first."
         )
 
     rag = RAGChain(
         vector_store = request.app.state.vector_store,
         namespace=body.document_id,
-        top_k=body.top_k,
+        top_k= body.top_k,
         score_threshold=body.score_threshold
     )
 
-    result = rag.answer(request.question)
+    result = rag.answer(body.question)
 
     return QueryResponse(
         answer=result['answer'],

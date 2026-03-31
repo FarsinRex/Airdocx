@@ -5,7 +5,7 @@ from pinecone import Pinecone
 from sentence_transformers import SentenceTransformer
 
 load_dotenv()
-SCORE_THRESHOLD = 0.72
+SCORE_THRESHOLD = 0.30
 
 class VectorStore:
     """Manages embeddings and pinecone storage
@@ -50,6 +50,8 @@ class VectorStore:
         
         for chunk, embedding in zip(chunks, embeddings):
             chunk['embedding'] = embedding.tolist()
+        
+        return chunks
     
     def upsert_chunks(self, chunks: List[Dict], namespace: str = 'default'):
         """
@@ -68,7 +70,7 @@ class VectorStore:
                 "metadata": {
                     "text": chunk['text'],
                     "source": chunk['source'],
-                    "pages": chunk['pages'],
+                    "pages": [str(p) for p in chunk['pages']],
                     "word_count": chunk['word_count'],
                     "chunk_index": chunk['chunk_index']
                         
@@ -116,7 +118,7 @@ class VectorStore:
                 "score": match['score'],
                 "text": match['metadata']['text'],
                 "source": match['metadata']['source'],
-                "pages": match['metadata'].get('pages', [])
+                "pages": [int(p) for p in match['metadata'].get('pages',[])]
             })
         print(f" found {len(matches)} matches")
         return matches
